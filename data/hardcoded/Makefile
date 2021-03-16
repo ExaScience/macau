@@ -3,14 +3,15 @@
 
 all: clean run pred
 pred: pred/status.csv
-run: save/root.ini
+run: save/output.hdf5
 
-pred/status.csv:	save/root.ini
+
+pred/status.csv: save/output.hdf5
 	rm -rf pred
 	mkdir -p pred
-	smurff --save-freq -1 --save-prefix pred --root save/root.ini --row-features feat_0_0.mtx --save-extension .csv
+	py_smurff --save-freq -1 --save-prefix pred --save-name save/output.hdf5 --row-features feat_0_0.mtx --save-extension .csv
 
-save/root.ini:
+save/output.hdf5:
 	rm -rf save
 	mkdir -p save
 	smurff --ini macau.ini

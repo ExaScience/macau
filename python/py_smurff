@@ -69,7 +69,7 @@ def read_ini(fname):
 
 parser = argparse.ArgumentParser(description='pySMURFF - command line utility to the SMURFF Python module')
 
-parser.add_argument("command", help="Do full 'run' or only 'save' to .h5", choices=['run', 'save'])
+parser.add_argument("command", help="Do full 'train' or 'predict' run or only 'save' to .h5", choices=['train', 'predict', 'save'])
 
 group = parser.add_argument_group("General parameters")
 group.add_argument("--version", action="store_true", help="print version info (and exit)")
@@ -79,8 +79,8 @@ group.add_argument("--num-threads", metavar= "NUM", type=int,  help="number of t
 group.add_argument("--seed", metavar= "NUM", type=int,  help="random number generator seed")
 
 group = parser.add_argument_group("Used during training")
-group.add_argument("--train", metavar="FILE", type=str, help="train data file")
-group.add_argument("--test", metavar="FILE", type=str, help="test data")
+group.add_argument("--train-input", metavar="FILE", type=str, help="train data file")
+group.add_argument("--test-input", metavar="FILE", type=str, help="test data")
 group.add_argument("--row-features", metavar="FILE", type=str, help="sparse/dense row features")
 group.add_argument("--col-features", metavar="FILE", type=str, help="sparse/dense column features")
 group.add_argument("--prior", metavar="NAME", nargs=2, type=str, help="provide a prior-type for each dimension of train; prior-types:  <normal|normalone|spikeandslab|macau|macauone>")
@@ -102,48 +102,94 @@ if args.version:
     print("SMURFF %s" % smurff.version)
     exit
 
-session = smurff.TrainSession()
+if args.command in ("train", "save"):
+    session = smurff.TrainSession()
+    if args.ini is not None:
+        session = read_ini(args.ini)
 
-if args.ini is not None:
-    session = read_ini(args.ini)
+    file_options = {
+        "train_input" : session.setTrain,
+        "test_input" : session.setTest,
+        "row_features" : lambda x: session.addSideInfo(0, x),
+        "col_features" : lambda x: session.addSideInfo(1, x),
+    }
 
-file_options = {
-    "train" : session.setTrain,
-    "test" : session.setTest,
-    "row_features" : lambda x: session.addSideInfo(0, x),
-    "col_features" : lambda x: session.addSideInfo(1, x),
-}
+    for opt, func in file_options.items():
+        if opt in vars(args) and vars(args)[opt] is not None:
+            fname = vars(args)[opt]
+            data = mio.read_matrix(fname)
+            func(data)
 
-for opt, func in file_options.items():
-    if opt in vars(args) and vars(args)[opt] is not None:
-        fname = vars(args)[opt]
-        data = mio.read_matrix(fname)
-        func(data)
+    other_options = {
+        "verbose" : session.setVerbose,
+        "num_threads" : session.setNumThreads,
+        "seed" : session.setRandomSeed,
+        "prior" : session.setPriorTypes,
+        "burnin" : session.setBurnin,
+        "nsamples" : session.setNSamples,
+        "num_latent" : session.setNumLatent,
+        "threshold" : session.setThreshold,
+        "restore_from" : session.setRestoreName,
+        "save_name" : session.setSaveName,
+        "save_freq" : session.setSaveFreq,
+        "checkpoint-freq" : session.setCheckpointFreq,
+    }
 
-other_options = {
-    "verbose" : session.setVerbose,
-    "num_threads" : session.setNumThreads,
-    "seed" : session.setRandomSeed,
-    "prior" : session.setPriorTypes,
-    "burnin" : session.setBurnin,
-    "nsamples" : session.setNSamples,
-    "num_latent" : session.setNumLatent,
-    "threshold" : session.setThreshold,
-    "restore_from" : session.setRestoreName,
-    "save_name" : session.setSaveName,
-    "save_freq" : session.setSaveFreq,
-    "checkpoint-freq" : session.setCheckpointFreq,
-}
+    print(vars(args))
+    for opt, func in other_options.items():
+        if opt in vars(args) and vars(args)[opt] is not None:
+            value = vars(args)[opt]
+            print("processing opt:", opt, "with value", value)
+            func(value)
 
-print(vars(args))
-for opt, func in other_options.items():
-    if opt in vars(args) and vars(args)[opt] is not None:
-        value = vars(args)[opt]
-        print("processing opt:", opt, "with value", value)
-        func(value)
+    if args.command == "train":
+        session.run()
+    else:
+        session.init() # init will validate and save
 
-if args.command == "run":
-    session.run()
 else:
-    session.init() # init will validate and save
+    session = smurff.PredictSession(args.restore_from)
+    print(session)
 
+    if args.test_input:
+        predictions = session.predict(test_input)
+
+    file_options = {
+        "train_input" : session.setTrain,
+        "test_input" : session.setTest,
+        "row_features" : lambda x: session.addSideInfo(0, x),
+        "col_features" : lambda x: session.addSideInfo(1, x),
+    }
+
+    for opt, func in file_options.items():
+        if opt in vars(args) and vars(args)[opt] is not None:
+            fname = vars(args)[opt]
+            data = mio.read_matrix(fname)
+            func(data)
+
+    other_options = {
+        "verbose" : session.setVerbose,
+        "num_threads" : session.setNumThreads,
+        "seed" : session.setRandomSeed,
+        "prior" : session.setPriorTypes,
+        "burnin" : session.setBurnin,
+        "nsamples" : session.setNSamples,
+        "num_latent" : session.setNumLatent,
+        "threshold" : session.setThreshold,
+        "restore_from" : session.setRestoreName,
+        "save_name" : session.setSaveName,
+        "save_freq" : session.setSaveFreq,
+        "checkpoint-freq" : session.setCheckpointFreq,
+    }
+
+    print(vars(args))
+    for opt, func in other_options.items():
+        if opt in vars(args) and vars(args)[opt] is not None:
+            value = vars(args)[opt]
+            print("processing opt:", opt, "with value", value)
+            func(value)
+
+    if args.command == "train":
+        session.run()
+    else:
+        session.init() # init will validate and save

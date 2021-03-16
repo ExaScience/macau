@@ -99,6 +99,7 @@ setup(
     name = 'smurff',
     package_dir={'smurff':'python/smurff'},
     packages = [ 'smurff' ],
+    scripts = [ 'python/py_smurff' ],
     use_scm_version={
         'version_scheme': 'post-release',
         'local_scheme': 'dirty-tag'
