@@ -42,11 +42,11 @@ class TestPredictSession(unittest.TestCase):
 
     def run_predict_some_all_one(self, train_session, predict_session):
         p1 = sorted(train_session.getTestPredictions())
-        p2 = sorted(predict_session.predict_some(self.Ytest))
-        p3 = predict_session.predict_one(p1[0].coords, p1[0].val)
-        p4 = predict_session.predict_all()
+        p2 = sorted(predict_session.predict(self.Ytest))
+        p3 = predict_session.predict(p1[0].coords)
+        p4 = predict_session.predict([Ellipsis] * predict_session.nmodes )
 
-        self.assertEqual(len(p1), len(p2))
+        self.assertEqual(len(p1), p2[0].nnz)
 
         # check train_session vs predict_session for Ytest
         self.assertEqual(p1[0].coords, p2[0].coords)
